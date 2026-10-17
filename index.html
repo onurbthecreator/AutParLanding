@@ -505,7 +505,20 @@
     }, { passive: true });
 
     vaiPara(0);
-    addEventListener('resize', () => { const n = cenaAtual; cenaAtual = -1; mapa.invalidateSize(); vaiPara(n); });
+    // No celular a barra de endereço some e volta durante a rolagem e cada vez
+    // dispara resize. Antes isso apagava e re-voava o mapa no meio da rolagem
+    // (círculos fora do lugar). Agora só ajusta o tamanho; enquadra de novo
+    // apenas se a largura mudar de verdade (girou o celular, mudou a janela).
+    let larguraAntes = innerWidth, esperaResize = null;
+    addEventListener('resize', () => {
+      clearTimeout(esperaResize);
+      esperaResize = setTimeout(() => {
+        mapa.invalidateSize({ pan: false });
+        if (innerWidth === larguraAntes) return;
+        larguraAntes = innerWidth;
+        const n = cenaAtual; cenaAtual = -1; vaiPara(n);
+      }, 200);
+    });
 
     if (!parado) {
       setInterval(() => {
@@ -544,7 +557,7 @@ const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x7a4120, 0.011); // o chão longe vai esquentando até a cor do horizonte
 if (renderer) scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environmentIntensity = 0.45;
-const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 900);
+const camera = new THREE.PerspectiveCamera(30, 1, 0.5, 900);
 
 // Fim de tarde: o sol baixo fica atrás da última torre na primeira cena
 // (contraluz na água) e a luz azulada do céu preenche as sombras.
@@ -619,12 +632,13 @@ ground.rotation.x = -Math.PI / 2; scene.add(ground);
 const field = new THREE.Mesh(new THREE.CircleGeometry(FR, 160), new THREE.MeshStandardMaterial({ map: tex, roughness: 1 }));
 field.rotation.x = -Math.PI / 2; field.position.y = 0.01; scene.add(field);
 // Área já irrigada: mesma textura, molhada e verde.
-const wetMat = new THREE.MeshStandardMaterial({ map: tex, color: 0x6fa866, roughness: 0.75 });
+// polygonOffset: de longe, camadas quase coladas no chão piscam umas sobre as outras.
+const wetMat = new THREE.MeshStandardMaterial({ map: tex, color: 0x6fa866, roughness: 0.75, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
 const wet = new THREE.Mesh(new THREE.BufferGeometry(), wetMat);
 wet.rotation.x = -Math.PI / 2; wet.position.y = 0.02; scene.add(wet);
 // Trilhas das rodas.
 for (const r of TOWERS) {
-  const t = new THREE.Mesh(new THREE.RingGeometry(r - 0.07, r + 0.07, 160), new THREE.MeshStandardMaterial({ color: 0x2c251c, roughness: 1 }));
+  const t = new THREE.Mesh(new THREE.RingGeometry(r - 0.07, r + 0.07, 160), new THREE.MeshStandardMaterial({ color: 0x2c251c, roughness: 1, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
   t.rotation.x = -Math.PI / 2; t.position.y = 0.03; scene.add(t);
 }
 const TH0 = deg(10);
@@ -780,7 +794,10 @@ function frame(now) {
   const TA = toWorld(V(R - 1.5, H + 0.4, 0)), CA = toWorld(V(R - 9 * k, 1.1, 8.5 * k));
   const T0 = toWorld(V(R, H + 0.6, 0)).lerp(TA, 1 - w0), C0 = toWorld(V(R - 5.5 * k, H + 2.2 * k, 6.5 * k)).lerp(CA, 1 - w0);
   const T1 = toWorld(V(R * 0.55, 1.2, 0)), C1 = toWorld(V(R * 0.55 - 3 * k, 8 * k, 15 * k));
-  const T2 = V(0, 0, 0), C2 = V(-8 * k, 44 * k, 36 * k);
+  // No celular (tela em pé) o campo inteiro fica pequeno: a câmera sobe por
+  // cima do braço e mostra a divisa entre o molhado e o seco.
+  const T2 = mobile ? toWorld(V(R * 0.5, 0, -R * 0.15)) : V(0, 0, 0);
+  const C2 = mobile ? T2.clone().add(V(0, 30, 9)) : V(-8, 44, 36);
   scene.fog.density = 0.011 * (1 - 0.75 * w2); // de cima, campo nítido
   tmpT.copy(T0).lerp(T1, w1).lerp(T2, w2);
   tmpC.copy(C0).lerp(C1, w1).lerp(C2, w2);
