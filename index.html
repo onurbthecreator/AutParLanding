@@ -100,6 +100,7 @@
   .leitura strong { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
 
   /* Rótulos no mapa */
+  .rotulo.meio { transform: translate(-50%, -50%); }
   .rotulo { position: absolute; transform: translate(12px, -50%); white-space: nowrap; background: var(--fundo); color: #fff; font: 600 13px 'Manrope', sans-serif; padding: 4px 8px; border-radius: 3px; }
   .leaflet-container { font-family: 'Manrope', sans-serif; }
   .pulso { animation: pulso 1.6s ease-out infinite; transform-origin: center; transform-box: fill-box; }
@@ -422,7 +423,10 @@
       L.circle([ALVO.lat, ALVO.lng], { radius: ALVO.r, color: '#fff', weight: 2, dashArray: '5 7', fill: false }),
       L.circleMarker([ALVO.lat, ALVO.lng], { radius: 6, color: '#fff', weight: 2, fillColor: '#0a0b0b', fillOpacity: 1 }),
       L.marker([ALVO.lat, ALVO.lng], { icon: L.divIcon({ className: '', html: '<span class="rotulo">centro calculado</span>', iconSize: [0, 0] }) }),
-      L.marker(ponto(ALVO, ALVO.r, 90), { icon: L.divIcon({ className: '', html: '<span class="rotulo">raio 630 m</span>', iconSize: [0, 0] }) }),
+      // Raio desenhado por dentro do círculo, com o rótulo no meio da linha:
+      // preso na borda, ele saía da tela (principalmente no celular).
+      L.polyline([[ALVO.lat, ALVO.lng], ponto(ALVO, ALVO.r, 150)], { color: '#fff', weight: 1.5, dashArray: '4 6' }),
+      L.marker(ponto(ALVO, ALVO.r * 0.58, 150), { icon: L.divIcon({ className: '', html: '<span class="rotulo meio">raio 630 m</span>', iconSize: [0, 0] }) }),
     ]);
 
     // Braço do pivô em destaque, somando a área
