@@ -3,431 +3,340 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="darkreader-lock">
 <title>Aut-Par Irrigação | Monitoramento de pivô central</title>
-<meta name="description" content="Monitoramento de pivô central com GPS, câmera e sensores. Saiba onde seu pivô está e como ele está trabalhando, de qualquer lugar.">
+<meta name="description" content="Acompanhe seus pivôs centrais pelo celular: posição do braço no mapa, fotos do campo e temperatura. Aut-Par Automação Industrial, Cambé, PR.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Manrope:wght@400;500;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
   :root {
-    --bg: #07100a;
-    --bg-2: #0c1a10;
-    --texto: #f2f7f3;
-    --texto-2: #a9bdae;
+    --fundo: #0a0b0b;
+    --card: #131515;
+    --texto: #f2f4f3;
+    --cinza: #a3aaa6;
+    --linha: #232827;
     --verde: #1fbf4a;
     --verde-claro: #6ee07f;
-    --verde-escuro: #0a3d18;
-    --linha: rgba(255,255,255,.08);
     --red: #E01423;
+    --girando: #1fbf4a;
+    --parado: #f5c542;
+    --semsinal: #ff6b6b;
+    --topo: 64px;
+    --display: 'Big Shoulders Display', 'Arial Narrow', sans-serif;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
   body {
-    background: var(--bg);
+    margin: 0;
+    background: var(--fundo);
     color: var(--texto);
-    font-family: "Manrope", system-ui, sans-serif;
-    line-height: 1.5;
+    font-family: 'Manrope', system-ui, sans-serif;
+    font-size: 18px;
+    line-height: 1.55;
     -webkit-font-smoothing: antialiased;
   }
-  a { color: inherit; text-decoration: none; }
-  .wrap { width: min(1120px, 100% - 32px); margin-inline: auto; }
+  a { color: inherit; }
+  a:focus-visible { outline: 3px solid var(--verde-claro); outline-offset: 3px; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
 
-  /* Cabeçalho */
-  header {
-    position: fixed; inset: 0 0 auto 0; z-index: 50;
-    background: linear-gradient(var(--bg), transparent);
-  }
-  header .wrap { display: flex; align-items: center; justify-content: space-between; height: 76px; }
-  .marca { font-weight: 800; font-size: 1.4rem; letter-spacing: -.02em; }
+  /* Topo */
+  header { position: sticky; top: 0; z-index: 1000; background: var(--fundo); border-bottom: 1px solid var(--linha); }
+  header .wrap { display: flex; align-items: center; justify-content: space-between; height: var(--topo); max-width: none; }
+  .marca { font-weight: 800; font-size: 22px; text-decoration: none; letter-spacing: -.01em; }
   .marca .aut { color: var(--red); }
-  .marca small { font-weight: 500; font-size: .8rem; color: var(--verde-claro); margin-left: 8px; letter-spacing: .08em; text-transform: uppercase; }
-  .btn-contorno {
-    border: 1px solid rgba(255,255,255,.35); border-radius: 999px;
-    padding: 10px 20px; font-weight: 600; font-size: .9rem;
-    transition: border-color .2s, background .2s;
+  .marca small { font-weight: 500; font-size: 15px; color: var(--cinza); margin-left: 8px; }
+  .btn {
+    display: inline-block; text-decoration: none; font-weight: 700; font-size: 16px;
+    padding: 13px 22px; border-radius: 6px; transition: background .15s;
   }
-  .btn-contorno:hover { border-color: var(--verde-claro); background: rgba(31,191,74,.1); }
+  .btn-verde { background: var(--verde); color: #04140a; }
+  .btn-verde:hover { background: var(--verde-claro); }
+  .btn-linha { border: 1.5px solid #3a403e; color: var(--texto); padding: 11.5px 20px; }
+  .btn-linha:hover { border-color: var(--texto); }
+  header .btn { padding: 9px 16px; font-size: 15px; }
 
-  /* Hero */
-  .hero {
-    min-height: 100vh; display: flex; align-items: flex-end;
-    padding: 140px 0 90px;
-    background:
-      radial-gradient(ellipse at 75% 30%, rgba(31,191,74,.22), transparent 55%),
-      /* troque pela imagem gerada: url(img/hero.jpg) center/cover */
-      var(--bg);
-    position: relative; overflow: hidden;
+  /* História: satélite fixo, cenas rolando por cima */
+  .historia { position: relative; background: #2e3328; }
+  .palco { position: sticky; top: var(--topo); height: calc(100vh - var(--topo)); overflow: hidden; }
+  #mapa { position: absolute; inset: 0; background: #2e3328; }
+  .legenda {
+    position: absolute; right: 20px; top: 20px; z-index: 500; background: rgba(10,11,11,.85); color: #fff;
+    font-size: 14px; padding: 10px 14px; border-radius: 4px; display: flex; gap: 16px; transition: opacity .4s;
   }
-  .hero h1 {
-    font-size: clamp(2.6rem, 7vw, 5.6rem);
-    line-height: 1.02; letter-spacing: -.035em; font-weight: 800;
-    max-width: 14ch;
-  }
-  .hero h1 em { font-style: normal; color: var(--verde-claro); }
-  .hero p { margin-top: 24px; font-size: clamp(1.05rem, 2vw, 1.3rem); color: var(--texto-2); max-width: 46ch; }
-  .hero .acoes { margin-top: 36px; display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
-  .acoes .btn-contorno { display: inline-flex; align-items: center; padding: 15px 26px; font-size: 1rem; }
-  .btn-verde {
-    display: inline-flex; align-items: center; gap: 10px;
-    padding: 16px 28px; border-radius: 999px; font-weight: 700;
-    background: linear-gradient(80deg, var(--verde-escuro), var(--verde));
-    box-shadow: 0 10px 30px rgba(31,191,74,.25);
-    transition: transform .2s, box-shadow .2s;
-  }
-  .btn-verde:hover { transform: translateY(-2px); box-shadow: 0 14px 34px rgba(31,191,74,.35); }
-  .hero-pivo {
-    position: absolute; right: -8vw; top: 50%; translate: 0 -50%;
-    width: min(62vw, 720px); opacity: .55; pointer-events: none;
-  }
+  .legenda i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+  .legenda.some { opacity: 0; }
+  .progresso { position: absolute; left: 0; bottom: 0; height: 4px; background: var(--verde); z-index: 500; width: 0; transition: width .5s; }
 
-  /* Blocos com foto grande */
-  .bloco {
-    min-height: 90vh; display: flex; align-items: center;
-    background-size: cover; background-position: center;
-    position: relative;
+  .cenas { position: relative; z-index: 2; margin-top: calc(-100vh + var(--topo)); pointer-events: none; }
+  .cena { min-height: 100vh; display: flex; align-items: center; padding: 48px 24px; }
+  .cena:first-child { min-height: calc(100vh - var(--topo)); }
+  /* Texto direto sobre o mapa, sem cartão: o degradê do lado segura a leitura. */
+  .caixa {
+    pointer-events: auto; max-width: 440px; padding: 0 4px;
+    margin-left: max(0px, calc((100vw - 1120px) / 2));
+    text-shadow: 0 1px 12px rgba(0,0,0,.6);
   }
-  .bloco::before { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(7,16,10,.85), rgba(7,16,10,.2)); }
-  .bloco .wrap { position: relative; }
-  .bloco .num { color: var(--verde-claro); font-weight: 700; letter-spacing: .12em; font-size: .85rem; }
-  .bloco h2 { font-size: clamp(2rem, 5vw, 3.6rem); line-height: 1.05; letter-spacing: -.03em; margin: 12px 0 18px; max-width: 16ch; }
-  .bloco p { font-size: clamp(1.05rem, 1.8vw, 1.25rem); color: #d6e3d9; max-width: 44ch; }
-  /* Placeholders até as imagens geradas por IA chegarem (trocar por url(img/blocoN.jpg)) */
-  .b1 { background-image: radial-gradient(circle at 70% 50%, #1d5a2c, #07100a 70%); }
-  .b2 { background-image: radial-gradient(circle at 30% 40%, #2c4a1a, #07100a 70%); }
-  .b3 { background-image: radial-gradient(circle at 60% 60%, #16452f, #07100a 70%); }
-
-  /* Frase de impacto */
-  .frase { padding: 160px 0; }
-  .frase h2 { font-size: clamp(2.2rem, 6vw, 4.6rem); line-height: 1.05; letter-spacing: -.035em; font-weight: 500; max-width: 18ch; }
-  .frase h2 strong { font-weight: 800; }
-
-  /* Seu painel: cards com mapa de satélite */
-  .painel-sec { padding: 20px 0 140px; }
-  .painel-sec .topo { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: end; margin-bottom: 48px; }
-  .painel-sec h2 { font-size: clamp(2rem, 4.5vw, 3.2rem); letter-spacing: -.03em; line-height: 1.05; }
-  .painel-sec .topo p { color: var(--texto-2); font-size: 1.1rem; }
-  .cards-mapa { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-  .card-mapa { margin: 0; }
-  .mapa {
-    aspect-ratio: 1; border-radius: 24px; overflow: hidden;
-    position: relative; z-index: 0; isolation: isolate;
-    background: #16261a; border: 1px solid var(--linha);
+  .palco::after { content: ""; position: absolute; inset: 0; z-index: 450; pointer-events: none;
+    background: linear-gradient(90deg, rgba(10,11,11,.94) 0%, rgba(10,11,11,.8) 28%, rgba(10,11,11,.25) 48%, transparent 60%); }
+  h1, h2, .p3d-step h3 { font-family: var(--display); text-transform: uppercase; }
+  h1 {
+    font-weight: 900; font-size: clamp(60px, 8.4vw, 124px);
+    line-height: .84; letter-spacing: .005em; margin: 0 0 24px;
   }
-  .mapa .leaflet-control-attribution { background: rgba(0,0,0,.55); color: #aaa; font-size: 9px; }
-  .mapa .leaflet-control-attribution a { color: #ccc; }
-  .card-mapa figcaption { padding: 18px 4px 0; }
-  .card-mapa strong { display: block; font-size: 1.15rem; margin-bottom: 4px; }
-  .card-mapa span { color: var(--texto-2); }
-  .legenda { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; font-size: .85rem; color: var(--texto-2); }
-  .legenda i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
-  .temp {
-    font: 700 12px "Manrope", sans-serif; color: #111;
-    padding: 4px 8px; border-radius: 999px; white-space: nowrap;
-    box-shadow: 0 2px 8px rgba(0,0,0,.5); transform: translate(-50%, -50%); display: inline-block;
+  .cena h2 {
+    font-weight: 800; font-size: clamp(32px, 3vw, 42px);
+    line-height: .92; letter-spacing: .01em; margin: 0 0 12px;
   }
-  .rotulo {
-    font: 600 11px "Manrope", sans-serif; color: #fff; background: rgba(0,0,0,.6);
-    padding: 3px 8px; border-radius: 6px; white-space: nowrap; transform: translate(12px, -50%); display: inline-block;
+  .caixa p { margin: 0 0 16px; color: var(--cinza); }
+  .caixa p:last-child { margin-bottom: 0; }
+  .acoes { display: flex; gap: 12px; flex-wrap: wrap; }
+  .nota { font-size: 14px; color: var(--cinza); }
+  .rolar { font-size: 15px; color: var(--cinza); margin-top: 20px; }
+  .leituras { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0 16px; border-top: 1px solid var(--linha); margin: 18px 0 12px; }
+  .leitura { padding: 12px 0; border-bottom: 1px solid var(--linha); }
+  .leitura span { display: block; font-size: 13px; color: var(--cinza); }
+  .leitura strong { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+
+  /* Rótulos no mapa */
+  .rotulo { position: absolute; transform: translate(12px, -50%); white-space: nowrap; background: var(--fundo); color: #fff; font: 600 13px 'Manrope', sans-serif; padding: 4px 8px; border-radius: 3px; }
+  .leaflet-container { font-family: 'Manrope', sans-serif; }
+  .pulso { animation: pulso 1.6s ease-out infinite; transform-origin: center; transform-box: fill-box; }
+  @keyframes pulso { 0% { stroke-opacity: .9; stroke-width: 3; } 100% { stroke-opacity: 0; stroke-width: 22; } }
+
+  /* Depois da história */
+  section.parte { padding: 96px 0; border-bottom: 1px solid var(--linha); }
+  h2 {
+    font-weight: 800; font-size: clamp(40px, 4.6vw, 64px);
+    line-height: .9; letter-spacing: .01em; margin: 0 0 18px;
   }
+  h3 { font-weight: 700; font-size: 20px; margin: 0 0 6px; }
+  .passos { list-style: none; margin: 40px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; counter-reset: passo; }
+  .passos li { border-top: 2px solid var(--linha); padding-top: 18px; counter-increment: passo; }
+  .passos li::before { content: counter(passo); display: block; font-weight: 800; font-size: 44px; line-height: 1; color: var(--verde); margin-bottom: 12px; }
+  .passos p { margin: 0; color: var(--cinza); }
+  .extras { margin: 56px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 0 56px; }
+  .extras li { padding: 14px 0; border-bottom: 1px solid var(--linha); }
 
-  /* Demo do pivô */
-  .demo { padding: 40px 0 140px; }
-  .demo-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 48px; align-items: center; }
-  .painel {
-    background: var(--bg-2); border: 1px solid var(--linha); border-radius: 24px;
-    padding: 28px; aspect-ratio: 1; display: grid; place-items: center;
+  .contato { padding: 96px 0; background: var(--card); color: #fff; border-top: 1px solid var(--linha); }
+  .contato h2 { color: #fff; }
+  .contato p { color: var(--cinza); margin: 0 0 28px; max-width: 48ch; }
+    .tel { font-family: var(--display); font-weight: 800; font-size: clamp(38px, 5.5vw, 64px); line-height: 1; text-decoration: none; display: inline-block; margin-bottom: 28px; letter-spacing: -.01em; }
+  footer { background: var(--fundo); color: #6b726e; font-size: 15px; border-top: 1px solid var(--linha); }
+  footer .wrap { display: flex; justify-content: space-between; gap: 16px; padding-top: 24px; padding-bottom: 24px; flex-wrap: wrap; }
+  footer a { text-decoration: none; }
+
+  /* Como funciona: pivô em 3D preso à rolagem */
+  .p3d-scrolly { height: 440vh; position: relative; border-bottom: 1px solid var(--linha); }
+  /* Enquanto o 3D carrega, um pôr do sol em degradê no lugar; depois a cena entra por cima com fade. */
+  .p3d-stage { position: sticky; top: var(--topo); height: calc(100vh - var(--topo)); height: calc(100svh - var(--topo)); overflow: hidden;
+    background: radial-gradient(60% 45% at 60% 78%, rgba(225,120,50,.55), transparent 70%), linear-gradient(180deg, #0a0b0b 0%, #15171b 42%, #4a2a16 74%, #1c120c 82%, #0a0b0b 100%); }
+  .p3d-canvas { opacity: 0; transition: opacity .9s ease; }
+  .p3d-canvas.pronto { opacity: 1; }
+  .p3d-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .p3d-shade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, var(--fundo) 0%, rgba(10,11,11,.92) 30%, rgba(10,11,11,.5) 44%, transparent 58%); }
+  .p3d-stage .wrap { position: relative; height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); align-items: center; }
+  .p3d-steps { position: relative; z-index: 2; min-height: 420px; }
+  .p3d-step { position: absolute; inset: 50% 0 auto; transform: translateY(calc(-50% + 18px)); opacity: 0; transition: opacity .5s ease, transform .6s ease; }
+  .p3d-step.on { opacity: 1; transform: translateY(-50%); }
+  .p3d-step .n { display: block; font-family: var(--display); font-weight: 900; font-size: 64px; line-height: .9; color: var(--verde); margin-bottom: 10px; }
+  .p3d-step h3 { font-weight: 800; font-size: clamp(34px, 3.4vw, 48px); line-height: .92; margin: 0 0 12px; letter-spacing: .01em; }
+  .p3d-step .sub { font-size: clamp(17px, 1.6vw, 20px); max-width: 36ch; margin-bottom: 28px; }
+  .p3d-step p { margin: 0; color: var(--cinza); max-width: 40ch; }
+  .p3d-readout { position: absolute; right: 24px; bottom: 24px; z-index: 2; text-align: right; font-variant-numeric: tabular-nums; }
+  .p3d-readout small { display: block; font-size: 14px; font-weight: 600; color: var(--cinza); }
+  .p3d-readout .ang { font-size: clamp(34px, 4.4vw, 52px); font-weight: 800; line-height: 1.1; }
+  .p3d-readout .st { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; }
+  .p3d-readout .st i { width: 10px; height: 10px; border-radius: 50%; background: var(--girando); box-shadow: 0 0 12px var(--girando); }
+  section.extras-sec { padding: 64px 0 96px; border-bottom: 1px solid var(--linha); }
+  section.extras-sec .extras { margin-top: 24px; }
+
+  @media (max-width: 820px) {
+    body { font-size: 17px; }
+    .wrap { padding: 0 16px; }
+    header small { display: none; }
+    .legenda { right: 12px; top: 12px; gap: 10px; font-size: 13px; }
+    .cena { align-items: flex-end; padding: 24px 12px; }
+    .cena:first-child { align-items: flex-end; }
+    .caixa { max-width: none; width: 100%; margin-left: 0; padding: 0 4px 8px; }
+    .palco::after { background: linear-gradient(0deg, rgba(10,11,11,.95) 0%, rgba(10,11,11,.82) 34%, rgba(10,11,11,.2) 56%, transparent 66%); }
+    .leitura strong { font-size: 24px; }
+    section.parte, .contato { padding: 64px 0; }
+    .passos, .extras { grid-template-columns: 1fr; gap: 28px; }
+    .p3d-stage .wrap { grid-template-columns: 1fr; align-items: end; padding-bottom: 64px; }
+    .p3d-steps { min-height: 300px; }
+    h1 { font-size: clamp(52px, 15vw, 72px); }
+    .p3d-step .n { font-size: 48px; }
+    .p3d-step { inset: auto 0 0; transform: translateY(18px); }
+    .p3d-step.on { transform: none; }
+    .p3d-shade { background: linear-gradient(0deg, var(--fundo) 0%, rgba(10,11,11,.9) 36%, rgba(10,11,11,.45) 56%, transparent 74%); }
+    .p3d-readout { left: 16px; right: auto; bottom: 16px; text-align: left; display: flex; align-items: baseline; gap: 14px; }
+    .p3d-readout small { display: none; }
+    .p3d-readout .ang { font-size: 26px; }
+    section.extras-sec { padding: 48px 0 64px; }
+    .extras { gap: 0; }
   }
-  .painel svg { width: 100%; height: auto; }
-  .demo h3 { font-size: clamp(1.6rem, 3.2vw, 2.4rem); letter-spacing: -.02em; line-height: 1.15; }
-  .demo p { color: var(--texto-2); margin: 16px 0 28px; }
-  .leituras { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .leitura { border: 1px solid var(--linha); border-radius: 16px; padding: 16px 18px; background: rgba(255,255,255,.02); }
-  .leitura span { display: block; color: var(--texto-2); font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; }
-  .leitura strong { font-size: 1.5rem; font-variant-numeric: tabular-nums; }
-  .aviso { margin-top: 14px; font-size: .8rem; color: #6f8575; }
-
-  /* Como funciona */
-  .como { padding: 120px 0; background: var(--bg-2); border-block: 1px solid var(--linha); }
-  .como h2, .fatos h2 { font-size: clamp(1.8rem, 4vw, 2.8rem); letter-spacing: -.03em; margin-bottom: 48px; }
-  .passos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; counter-reset: passo; }
-  .passo { padding: 28px; border-radius: 20px; border: 1px solid var(--linha); background: var(--bg); }
-  .passo::before {
-    counter-increment: passo; content: counter(passo, decimal-leading-zero);
-    display: block; color: var(--verde-claro); font-weight: 800; font-size: 1.1rem; margin-bottom: 14px;
-  }
-  .passo h3 { font-size: 1.2rem; margin-bottom: 8px; }
-  .passo p { color: var(--texto-2); }
-
-  /* Fatos */
-  .fatos { padding: 120px 0; }
-  .lista-fatos { display: grid; gap: 14px; }
-  .fato {
-    display: flex; align-items: center; gap: 16px;
-    padding: 20px 26px; border-radius: 18px; font-size: clamp(1.05rem, 2vw, 1.3rem); font-weight: 600;
-    background: linear-gradient(80deg, var(--verde-escuro), rgba(31,191,74,.55));
-  }
-  .fato svg { flex: none; width: 26px; height: 26px; }
-
-  /* CTA final */
-  .final { padding: 140px 0 120px; text-align: center; }
-  .final h2 { font-size: clamp(2.2rem, 6vw, 4.2rem); letter-spacing: -.035em; line-height: 1.05; margin-bottom: 20px; }
-  .final p { color: var(--texto-2); margin-bottom: 36px; }
-  .final .acoes { display: flex; justify-content: center; align-items: center; gap: 14px; flex-wrap: wrap; }
-
-  footer { border-top: 1px solid var(--linha); padding: 32px 0 110px; color: #6f8575; font-size: .9rem; }
-  footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-
-  /* Botão flutuante */
-  .flutuante {
-    position: fixed; right: 24px; bottom: 24px; z-index: 60;
-    padding: 14px 24px; border-radius: 999px; font-weight: 700; font-size: .95rem;
-    background: linear-gradient(80deg, var(--verde-escuro), var(--verde));
-    box-shadow: 0 10px 28px rgba(0,0,0,.4);
-    transition: transform .2s;
-  }
-  .flutuante:hover { transform: translateY(-2px); }
-
-  /* Aparecer ao rolar */
-  .revela { opacity: 0; transform: translateY(28px); transition: opacity .8s ease, transform .8s ease; }
-  .revela.visivel { opacity: 1; transform: none; }
   @media (prefers-reduced-motion: reduce) {
-    .revela { opacity: 1; transform: none; transition: none; }
-    #braco, #fatia { animation: none !important; }
-  }
-
-  @media (max-width: 860px) {
-    .demo-grid, .passos, .cards-mapa, .painel-sec .topo { grid-template-columns: 1fr; }
-    .hero-pivo { right: -30vw; width: 110vw; opacity: .3; }
-    header .btn-contorno { display: none; }
-    .flutuante { left: 16px; right: 16px; text-align: center; bottom: 16px; }
+    html { scroll-behavior: auto; }
+    .pulso { animation: none; }
+    .p3d-step { transition: none; }
   }
 </style>
+<!-- Já começa a baixar o 3D junto com a página. -->
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js">
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/environments/RoomEnvironment.js">
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/utils/BufferGeometryUtils.js">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+} }
+</script>
 </head>
 <body>
-
 <header>
   <div class="wrap">
     <a class="marca" href="#"><span class="aut">Aut</span>Par<small>Irrigação</small></a>
-    <a class="btn-contorno" href="https://pivo.autpar.com.br/">Acessar o sistema →</a>
+    <a class="btn btn-linha" href="https://pivo.autpar.com.br/">Entrar no sistema</a>
   </div>
 </header>
 
-<section class="hero">
-  <svg class="hero-pivo" viewBox="0 0 200 200" aria-hidden="true">
-    <circle cx="100" cy="100" r="92" fill="none" stroke="#1fbf4a" stroke-opacity=".35" stroke-width=".6"/>
-    <circle cx="100" cy="100" r="66" fill="none" stroke="#1fbf4a" stroke-opacity=".2" stroke-width=".6"/>
-    <circle cx="100" cy="100" r="40" fill="none" stroke="#1fbf4a" stroke-opacity=".15" stroke-width=".6"/>
-    <g style="transform-origin:100px 100px; animation: gira 24s linear infinite">
-      <line x1="100" y1="100" x2="100" y2="8" stroke="#6ee07f" stroke-width="1.2"/>
-      <circle cx="100" cy="8" r="2.4" fill="#6ee07f"/>
-    </g>
-  </svg>
-  <div class="wrap revela">
-    <h1>Seu pivô, visto de <em>qualquer lugar</em>.</h1>
-    <p>Monitoramento de pivô central com GPS, câmera e sensores. Da última torre até a tela do seu celular.</p>
+<section class="p3d-scrolly" id="como">
+  <div class="p3d-stage" id="p3d-stage">
+    <canvas class="p3d-canvas" id="p3d-cv" aria-hidden="true"></canvas>
+    <div class="p3d-shade"></div>
+    <div class="wrap">
+      <div class="p3d-steps">
+        <div class="p3d-step on">
+          <h1>Seu pivô, de onde você estiver.</h1>
+          <p class="sub">Um equipamento na torre mostra onde está o braço, quanto já irrigou e se parou. No celular ou no computador.</p>
+          <div class="acoes">
+            <a class="btn btn-verde" href="tel:+554332532648">Ligar para a Aut-Par</a>
+          </div>
+        </div>
+        <div class="p3d-step">
+          <span class="n">1</span>
+          <h3>Instalação na torre</h3>
+          <p>O equipamento vai na torre mais longe do centro, onde o GPS é mais preciso. A câmera fica apontada para o campo.</p>
+        </div>
+        <div class="p3d-step">
+          <span class="n">2</span>
+          <h3>Envio para a nuvem</h3>
+          <p>Posição, fotos e temperatura são enviadas por conexão segura, no intervalo que você escolher.</p>
+        </div>
+        <div class="p3d-step">
+          <span class="n">3</span>
+          <h3>Acompanhamento</h3>
+          <p>Você entra com sua conta Google e vê só os seus pivôs, no celular ou no computador. Sem instalar aplicativo.</p>
+        </div>
+      </div>
+    </div>
+    <div class="p3d-readout">
+      <small>Ângulo do braço</small>
+      <div class="ang" id="p3d-ang">40°</div>
+      <div class="st"><i></i><span id="p3d-area">0% irrigado</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="historia">
+  <div class="palco">
+    <div id="mapa" role="img" aria-label="Imagem de satélite de uma região com vários pivôs centrais, usada para mostrar como o sistema acompanha cada um"></div>
+    <div class="legenda" id="legenda" aria-hidden="true">
+      <span><i style="background:var(--girando)"></i>Girando</span>
+      <span><i style="background:var(--parado)"></i>Parado</span>
+      <span><i style="background:var(--semsinal)"></i>Sem sinal</span>
+    </div>
+    <div class="progresso" id="progresso"></div>
+  </div>
+
+  <div class="cenas">
+    <div class="cena" data-cena="0">
+      <div class="caixa">
+        <h2>Assim seus pivôs aparecem no sistema.</h2>
+        <p>Exemplo em Cristalina (GO). Cada círculo é um pivô, e a cor mostra se ele está girando, parado ou sem sinal.</p>
+      </div>
+    </div>
+    <div class="cena" data-cena="1">
+      <div class="caixa">
+        <h2>Cada ponto é a torre dizendo onde está.</h2>
+        <p>O GPS fica na torre mais longe do centro. A cada envio, um ponto novo aparece no mapa.</p>
+      </div>
+    </div>
+    <div class="cena" data-cena="2">
+      <div class="caixa">
+        <h2>Com os pontos, o sistema acha o círculo.</h2>
+        <p>Centro, raio e sentido de giro saem dos próprios pontos. Ninguém precisa medir nem cadastrar isso na mão.</p>
+      </div>
+    </div>
+    <div class="cena" data-cena="3">
+      <div class="caixa">
+        <h2>O braço anda e a área irrigada vai somando.</h2>
+        <div class="leituras">
+          <div class="leitura"><span>Ângulo</span><strong id="l-angulo">0°</strong></div>
+          <div class="leitura"><span>Nesta volta</span><strong id="l-area">0 ha</strong></div>
+          <div class="leitura"><span>Temperatura</span><strong>27 °C</strong></div>
+        </div>
+        <p class="nota">Pivô real em Cristalina, GO, com 630 m de raio. Valores de exemplo.</p>
+      </div>
+    </div>
+    <div class="cena" data-cena="4">
+      <div class="caixa">
+        <h2>Parou ou ficou sem sinal? Aparece na hora.</h2>
+        <p>Todos os pivôs da fazenda no mesmo mapa. Quem está girando, quem parou e quem não manda dado faz tempo.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+
+<section class="extras-sec">
+  <div class="wrap">
+    <h2>Também no sistema</h2>
+    <ul class="extras">
+      <li>Fotos do campo guardadas para comparar volta a volta</li>
+      <li>Status de cada pivô: girando, parado ou sem sinal</li>
+      <li>Vários pivôs da mesma fazenda no mesmo mapa</li>
+      <li>Cada cliente acessa somente os próprios dados</li>
+    </ul>
+  </div>
+</section>
+
+<section class="contato">
+  <div class="wrap">
+    <h2>Quer ver os seus pivôs no mapa?</h2>
+    <p>Fale com a Aut-Par para saber como instalar na sua fazenda. Se você já é cliente, entre no sistema.</p>
+    <a class="tel" href="tel:+554332532648">(43) 3253-2648</a>
     <div class="acoes">
-      <a class="btn-verde" href="#como">Como funciona ↓</a>
-      <a class="btn-contorno" href="https://pivo.autpar.com.br/">Já sou cliente</a>
+      <a class="btn btn-linha" href="https://pivo.autpar.com.br/">Entrar no sistema</a>
     </div>
   </div>
 </section>
-
-<section class="bloco b1">
-  <div class="wrap revela">
-    <div class="num">01 · LOCALIZAÇÃO</div>
-    <h2>Saiba onde ele está.</h2>
-    <p>O GPS instalado na torre manda a posição do pivô para a nuvem. Você vê no mapa onde o braço está agora, sem ir até a lavoura.</p>
-  </div>
-</section>
-
-<section class="bloco b2">
-  <div class="wrap revela">
-    <div class="num">02 · CÂMERA</div>
-    <h2>Veja o que está acontecendo.</h2>
-    <p>Uma câmera no pivô envia fotos do campo. O histórico fica guardado para comparar volta a volta.</p>
-  </div>
-</section>
-
-<section class="bloco b3">
-  <div class="wrap revela">
-    <div class="num">03 · OPERAÇÃO</div>
-    <h2>Entenda como ele está trabalhando.</h2>
-    <p>Sentido de giro, velocidade, área irrigada e temperatura, calculados a partir dos dados que o próprio pivô envia.</p>
-  </div>
-</section>
-
-<section class="frase">
-  <div class="wrap revela">
-    <h2><strong>Decidir bem</strong> começa por enxergar o que acontece no campo.</h2>
-  </div>
-</section>
-
-<section class="painel-sec">
-  <div class="wrap">
-    <div class="topo revela">
-      <h2>Toda a fazenda em uma tela.</h2>
-      <p>Cada pivô aparece no mapa de satélite com a área que já girou, o status e as leituras dos sensores. É isso que você vê ao entrar no sistema.</p>
-    </div>
-    <div class="cards-mapa">
-      <figure class="card-mapa revela">
-        <div class="mapa" id="mapa-status"></div>
-        <figcaption>
-          <strong>Status de cada pivô</strong>
-          <span>Quem está girando, quem parou e quem ficou sem sinal.</span>
-          <div class="legenda"><span><i style="background:#1fbf4a"></i>Girando</span><span><i style="background:#f5c542"></i>Parado</span><span><i style="background:#ff4d4d"></i>Sem sinal</span></div>
-        </figcaption>
-      </figure>
-      <figure class="card-mapa revela">
-        <div class="mapa" id="mapa-gps"></div>
-        <figcaption>
-          <strong>O caminho do GPS</strong>
-          <span>Os pontos enviados pela torre desenham o círculo, e dele o sistema calcula o centro e o ângulo do braço.</span>
-        </figcaption>
-      </figure>
-      <figure class="card-mapa revela">
-        <div class="mapa" id="mapa-temp"></div>
-        <figcaption>
-          <strong>Temperatura no campo</strong>
-          <span>A leitura do sensor de cada pivô, direto no mapa.</span>
-        </figcaption>
-      </figure>
-    </div>
-    <div class="aviso revela">Ilustração com dados de exemplo sobre imagem de satélite real.</div>
-  </div>
-</section>
-
-<section class="demo">
-  <div class="wrap demo-grid">
-    <div class="painel revela">
-      <svg viewBox="0 0 300 300" role="img" aria-label="Ilustração de um pivô visto de cima, girando">
-        <defs>
-          <radialGradient id="solo" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stop-color="#1a3a20"/>
-            <stop offset="100%" stop-color="#0f2415"/>
-          </radialGradient>
-        </defs>
-        <circle cx="150" cy="150" r="130" fill="url(#solo)" stroke="#1fbf4a" stroke-opacity=".4"/>
-        <path id="fatia" fill="#1fbf4a" fill-opacity=".35"/>
-        <g id="braco" style="transform-origin:150px 150px">
-          <line x1="150" y1="150" x2="150" y2="20" stroke="#e8f5ea" stroke-width="2"/>
-          <circle cx="150" cy="63" r="3" fill="#e8f5ea"/>
-          <circle cx="150" cy="106" r="3" fill="#e8f5ea"/>
-          <circle cx="150" cy="20" r="6" fill="#6ee07f"/>
-          <circle cx="150" cy="20" r="11" fill="none" stroke="#6ee07f" stroke-opacity=".5">
-            <animate attributeName="r" values="6;16;6" dur="2s" repeatCount="indefinite"/>
-            <animate attributeName="stroke-opacity" values=".7;0;.7" dur="2s" repeatCount="indefinite"/>
-          </circle>
-        </g>
-        <circle cx="150" cy="150" r="5" fill="#e8f5ea"/>
-      </svg>
-    </div>
-    <div class="revela">
-      <h3>O mesmo cálculo que roda no painel de verdade.</h3>
-      <p>A partir dos pontos de GPS, o sistema encontra o centro do pivô, o ângulo do braço e para que lado ele está girando. Tudo automático, sem configurar nada.</p>
-      <div class="leituras">
-        <div class="leitura"><span>Ângulo</span><strong id="l-angulo">0°</strong></div>
-        <div class="leitura"><span>Sentido</span><strong>Horário</strong></div>
-        <div class="leitura"><span>Área irrigada</span><strong id="l-area">0,0 ha</strong></div>
-        <div class="leitura"><span>Status</span><strong style="color:var(--verde-claro)">● Ao vivo</strong></div>
-      </div>
-      <div class="aviso">Ilustração. Os valores são de exemplo.</div>
-    </div>
-  </div>
-</section>
-
-<section class="como" id="como">
-  <div class="wrap">
-    <h2 class="revela">Como funciona</h2>
-    <div class="passos">
-      <div class="passo revela">
-        <h3>Instalação na torre</h3>
-        <p>O dispositivo vai na torre mais distante do centro, onde a precisão do GPS é maior.</p>
-      </div>
-      <div class="passo revela">
-        <h3>Envio para a nuvem</h3>
-        <p>Posição, fotos e leituras dos sensores são enviadas por conexão segura.</p>
-      </div>
-      <div class="passo revela">
-        <h3>Painel no navegador</h3>
-        <p>Você entra com sua conta Google e acompanha seus pivôs no computador ou no celular.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="fatos">
-  <div class="wrap">
-    <h2 class="revela">Feito para o dia a dia da fazenda</h2>
-    <div class="lista-fatos">
-      <div class="fato revela"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Cada cliente vê só os próprios pivôs</div>
-      <div class="fato revela"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Intervalo de atualização ajustável</div>
-      <div class="fato revela"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/></svg>Histórico de fotos do campo</div>
-      <div class="fato revela"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M11 18h2"/></svg>Funciona no celular, sem instalar aplicativo</div>
-    </div>
-  </div>
-</section>
-
-<section class="final">
-  <div class="wrap revela">
-    <h2>Quer ver seu pivô no mapa?</h2>
-    <p>Fale com a Aut-Par ou entre no sistema se você já é cliente.</p>
-    <div class="acoes">
-      <a class="btn-verde" href="https://pivo.autpar.com.br/">Acessar o sistema →</a>
-      <a class="btn-contorno" href="tel:+554332532648">(43) 3253-2648</a>
-    </div>
-  </div>
-</section>
-
 <footer>
   <div class="wrap">
-    <span><span style="color:var(--red);font-weight:800">Aut</span><strong>Par</strong> Automação Industrial · Cambé, PR</span>
+    <span><span style="color:var(--red);font-weight:800">Aut</span><strong style="color:#fff">Par</strong> Automação Industrial, Cambé, PR</span>
     <a href="https://autpar.com.br">autpar.com.br</a>
   </div>
 </footer>
 
-<a class="flutuante" href="https://pivo.autpar.com.br/">Acessar o sistema</a>
-
-<style>@keyframes gira { to { transform: rotate(360deg); } }</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-  // Aparecer ao rolar
-  const obs = new IntersectionObserver((itens) => {
-    itens.forEach((i) => { if (i.isIntersecting) { i.target.classList.add('visivel'); obs.unobserve(i.target); } });
-  }, { threshold: 0.15 });
-  document.querySelectorAll('.revela').forEach((el) => obs.observe(el));
-
-  // Pivô da demonstração: braço gira e a fatia irrigada cresce
-  const braco = document.getElementById('braco');
-  const fatia = document.getElementById('fatia');
-  const lAngulo = document.getElementById('l-angulo');
-  const lArea = document.getElementById('l-area');
-  const AREA_TOTAL_HA = 50.3; // pivô de exemplo com ~400 m de raio
-  const PERIODO_MS = 20000;
   const parado = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  function desenha(angulo) {
-    braco.style.transform = `rotate(${angulo}deg)`;
-    const rad = (angulo - 90) * Math.PI / 180;
-    const x = 150 + 130 * Math.cos(rad);
-    const y = 150 + 130 * Math.sin(rad);
-    const grande = angulo > 180 ? 1 : 0;
-    fatia.setAttribute('d', angulo < 0.5 ? '' : `M150 150 L150 20 A130 130 0 ${grande} 1 ${x.toFixed(1)} ${y.toFixed(1)} Z`);
-    lAngulo.textContent = `${Math.round(angulo)}°`;
-    lArea.textContent = `${(AREA_TOTAL_HA * angulo / 360).toFixed(1).replace('.', ',')} ha`;
-  }
-
-  // Cards com mapa de satélite (pivôs reais vistos na imagem, dados de exemplo)
+  // Pivôs reais vistos na imagem de satélite, dados de exemplo
   const PIVOS = [
-    { lat: -16.24283, lng: -47.42132, r: 513, status: 'girando', angulo: 240, temp: 27 },
-    { lat: -16.24981, lng: -47.42695, r: 462, status: 'parado',  angulo: 130, temp: 29 },
-    { lat: -16.25206, lng: -47.41514, r: 630, status: 'girando', angulo: 300, temp: 26 },
-    { lat: -16.26125, lng: -47.40775, r: 650, status: 'girando', angulo: 90,  temp: 31 },
-    { lat: -16.25456, lng: -47.43382, r: 454, status: 'semsinal', angulo: 0,  temp: null },
+    { lat: -16.24283, lng: -47.42132, r: 513, status: 'girando', angulo: 240 },
+    { lat: -16.24981, lng: -47.42695, r: 462, status: 'parado',  angulo: 130 },
+    { lat: -16.25206, lng: -47.41514, r: 630, status: 'girando', angulo: 300 },
+    { lat: -16.26125, lng: -47.40775, r: 650, status: 'girando', angulo: 90 },
+    { lat: -16.25456, lng: -47.43382, r: 454, status: 'semsinal', angulo: 0 },
   ];
-  const COR = { girando: '#1fbf4a', parado: '#f5c542', semsinal: '#ff4d4d' };
+  const ALVO = PIVOS[2];
+  const COR = { girando: '#1fbf4a', parado: '#f5c542', semsinal: '#ff6b6b' };
 
-  // Ponto a "metros" de distância do centro, com ângulo medido a partir do norte, no sentido horário
+  // Ponto a "metros" do centro, ângulo a partir do norte, sentido horário
   function ponto(p, metros, graus) {
     const rad = graus * Math.PI / 180;
     return [
@@ -441,86 +350,484 @@
     pts.push(ponto(p, p.r, ate));
     return pts;
   }
-  function criaMapa(id) {
-    const m = L.map(id, {
-      zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
-      boxZoom: false, keyboard: false, touchZoom: false, attributionControl: true, zoomSnap: 0,
-    });
-    m.attributionControl.setPrefix(false);
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 18, attribution: 'Imagens © Esri, Maxar, Earthstar Geographics',
-    }).addTo(m);
-    return m;
-  }
   function limites(lista) {
     return L.latLngBounds(lista.flatMap((p) => [ponto(p, p.r, 0), ponto(p, p.r, 90), ponto(p, p.r, 180), ponto(p, p.r, 270)]));
   }
 
   if (window.L) {
-    // Card 1: status
-    const mStatus = criaMapa('mapa-status');
-    mStatus.fitBounds(limites(PIVOS), { padding: [10, 10] });
+    const mapa = L.map('mapa', {
+      zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
+      boxZoom: false, keyboard: false, touchZoom: false, zoomSnap: 0,
+    });
+    mapa.attributionControl.setPrefix(false);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 18, attribution: 'Imagens © Esri, Maxar, Earthstar Geographics',
+    }).addTo(mapa);
+
+    // A caixa de texto cobre parte do mapa: à esquerda no computador, embaixo no celular
+    const folga = () => innerWidth > 820
+      ? { paddingTopLeft: [Math.min(560, innerWidth * 0.42), 40], paddingBottomRight: [40, 40] }
+      : { paddingTopLeft: [16, 56], paddingBottomRight: [16, Math.round(innerHeight * 0.42)] };
+    // flyToBounds só funciona depois que o mapa já tem uma posição
+    mapa.fitBounds(limites(PIVOS), folga());
+    const enquadra = (lista) => {
+      const op = { ...folga(), animate: !parado, duration: 1.4 };
+      mapa.stop();
+      parado ? mapa.fitBounds(limites(lista), op) : mapa.flyToBounds(limites(lista), op);
+    };
+
+    // Camada da fazenda: todos os pivôs com status, braços girando
+    const fazenda = L.layerGroup();
     const girando = [];
     PIVOS.forEach((p) => {
       const cor = COR[p.status];
-      L.circle([p.lat, p.lng], { radius: p.r, color: cor, weight: 2, fillOpacity: 0.08, dashArray: p.status === 'semsinal' ? '6 6' : null }).addTo(mStatus);
+      L.circle([p.lat, p.lng], { radius: p.r, color: cor, weight: 2.5, fillOpacity: 0.06, dashArray: p.status === 'semsinal' ? '6 6' : null }).addTo(fazenda);
       if (p.status === 'semsinal') return;
-      const fatia = L.polygon(fatiaLatLngs(p, p.angulo), { color: cor, weight: 0, fillColor: cor, fillOpacity: 0.45 }).addTo(mStatus);
-      const braco = L.polyline([[p.lat, p.lng], ponto(p, p.r, p.angulo)], { color: '#fff', weight: 2 }).addTo(mStatus);
-      if (p.status === 'girando') girando.push({ p, fatia, braco });
+      const f = L.polygon(fatiaLatLngs(p, p.angulo), { weight: 0, fillColor: cor, fillOpacity: 0.4 }).addTo(fazenda);
+      const b = L.polyline([[p.lat, p.lng], ponto(p, p.r, p.angulo)], { color: '#fff', weight: 2.5 }).addTo(fazenda);
+      if (p.status === 'girando') girando.push({ p, f, b });
     });
+
+    // Alerta: anel pulsando em quem parou ou ficou sem sinal
+    const alerta = L.layerGroup();
+    PIVOS.filter((p) => p.status !== 'girando').forEach((p) => {
+      L.circle([p.lat, p.lng], { radius: p.r, color: COR[p.status], weight: 3, fill: false, className: 'pulso' }).addTo(alerta);
+    });
+
+    // Pontos de GPS do pivô em destaque
+    const gps = L.layerGroup();
+    let semente = 7;
+    const ruido = () => { semente = (semente * 9301 + 49297) % 233280; return (semente / 233280 - 0.5) * 18; };
+    const pontosGps = [];
+    for (let a = 0; a <= 250; a += 10) {
+      pontosGps.push(L.circleMarker(ponto(ALVO, ALVO.r + ruido(), a), {
+        radius: 5, color: '#fff', weight: 1.5, fillColor: '#6ee07f', fillOpacity: 1,
+      }));
+    }
+    let timerGps = null;
+    function mostraGps(animado) {
+      clearInterval(timerGps);
+      gps.clearLayers();
+      gps.addTo(mapa);
+      if (!animado || parado) { pontosGps.forEach((m) => m.addTo(gps)); return; }
+      let i = 0;
+      timerGps = setInterval(() => {
+        if (i >= pontosGps.length) return clearInterval(timerGps);
+        pontosGps[i++].addTo(gps);
+      }, 70);
+    }
+
+    // Círculo calculado
+    const circulo = L.layerGroup([
+      L.circle([ALVO.lat, ALVO.lng], { radius: ALVO.r, color: '#fff', weight: 2, dashArray: '5 7', fill: false }),
+      L.circleMarker([ALVO.lat, ALVO.lng], { radius: 6, color: '#fff', weight: 2, fillColor: '#0a0b0b', fillOpacity: 1 }),
+      L.marker([ALVO.lat, ALVO.lng], { icon: L.divIcon({ className: '', html: '<span class="rotulo">centro calculado</span>', iconSize: [0, 0] }) }),
+      L.marker(ponto(ALVO, ALVO.r, 90), { icon: L.divIcon({ className: '', html: '<span class="rotulo">raio 630 m</span>', iconSize: [0, 0] }) }),
+    ]);
+
+    // Braço do pivô em destaque, somando a área
+    const AREA_HA = Math.PI * ALVO.r * ALVO.r / 10000;
+    const destaque = L.layerGroup();
+    const fatiaAlvo = L.polygon(fatiaLatLngs(ALVO, 1), { weight: 0, fillColor: '#6ee07f', fillOpacity: 0.5 }).addTo(destaque);
+    const bracoAlvo = L.polyline([[ALVO.lat, ALVO.lng], ponto(ALVO, ALVO.r, 0)], { color: '#fff', weight: 3 }).addTo(destaque);
+    const pontaAlvo = L.circleMarker(ponto(ALVO, ALVO.r, 0), { radius: 7, color: '#fff', weight: 2, fillColor: '#1fbf4a', fillOpacity: 1 }).addTo(destaque);
+    const lAngulo = document.getElementById('l-angulo');
+    const lArea = document.getElementById('l-area');
+    let anguloAlvo = 0;
+    function desenhaAlvo() {
+      fatiaAlvo.setLatLngs(fatiaLatLngs(ALVO, Math.max(anguloAlvo, 1)));
+      const pt = ponto(ALVO, ALVO.r, anguloAlvo);
+      bracoAlvo.setLatLngs([[ALVO.lat, ALVO.lng], pt]);
+      pontaAlvo.setLatLng(pt);
+      lAngulo.textContent = `${Math.round(anguloAlvo)}°`;
+      lArea.textContent = `${Math.round(AREA_HA * anguloAlvo / 360)} ha`;
+    }
+
+    // Uma cena por vez
+    const legenda = document.getElementById('legenda');
+    const progresso = document.getElementById('progresso');
+    let cenaAtual = -1;
+    function vaiPara(n) {
+      if (n === cenaAtual) return;
+      const anterior = cenaAtual;
+      cenaAtual = n;
+      progresso.style.width = `${(n + 1) * 20}%`;
+      [fazenda, alerta, gps, circulo, destaque].forEach((g) => mapa.removeLayer(g));
+      clearInterval(timerGps);
+      legenda.classList.toggle('some', n >= 1 && n <= 3);
+      // Os desenhos só entram depois que o mapa para de voar: desenhado no
+      // meio do zoom, o Leaflet erra a posição e as bolinhas pulam no fim.
+      const desenha = () => {
+        if (n === 0) fazenda.addTo(mapa);
+        if (n === 1) mostraGps(anterior < 1);
+        if (n === 2) { mostraGps(false); circulo.addTo(mapa); }
+        if (n === 3) { circulo.addTo(mapa); destaque.addTo(mapa); anguloAlvo = parado ? 135 : 0; desenhaAlvo(); }
+        if (n === 4) { fazenda.addTo(mapa); alerta.addTo(mapa); }
+      };
+      enquadra(n === 0 || n === 4 ? PIVOS : [ALVO]);
+      depoisDoVoo(desenha);
+    }
+    let vooId = 0;
+    function depoisDoVoo(fn) {
+      const id = ++vooId;
+      let feito = false;
+      const roda = () => { if (feito || id !== vooId) return; feito = true; fn(); };
+      if (parado) { roda(); return; }
+      mapa.once('moveend', roda);
+      setTimeout(roda, 1700); // se o mapa já estava no lugar, nem voa
+    }
+
+    // A cena vem da posição da rolagem: a que está cruzando o meio da tela.
+    // Rolando rápido, espera parar um instante e aplica só a de agora (antes,
+    // uma cena pulada deixava o mapa preso na anterior).
+    const cenasEl = [...document.querySelectorAll('.cena')];
+    let espera = null;
+    function cenaDaRolagem() {
+      const meio = innerHeight / 2;
+      let n = 0;
+      cenasEl.forEach((c, i) => { if (c.getBoundingClientRect().top <= meio) n = i; });
+      return Number(cenasEl[n].dataset.cena);
+    }
+    // O texto some quando sai da área com degradê (no celular, a de baixo).
+    const caixas = cenasEl.map((c) => c.querySelector('.caixa'));
+    function apagaTextos() {
+      const foco = innerHeight * (innerWidth < 820 ? 0.78 : 0.5), faixa = innerHeight * 0.42;
+      caixas.forEach((c) => {
+        const r = c.getBoundingClientRect(), d = Math.abs(r.top + r.height / 2 - foco);
+        c.style.opacity = Math.max(0, Math.min(1, 1.6 - d / faixa)).toFixed(2);
+      });
+    }
+    apagaTextos();
+    addEventListener('scroll', () => {
+      apagaTextos();
+      clearTimeout(espera);
+      espera = setTimeout(() => vaiPara(cenaDaRolagem()), 150);
+    }, { passive: true });
+
+    vaiPara(0);
+    addEventListener('resize', () => { const n = cenaAtual; cenaAtual = -1; mapa.invalidateSize(); vaiPara(n); });
+
     if (!parado) {
       setInterval(() => {
         girando.forEach((g) => {
           g.p.angulo = (g.p.angulo + 1) % 360;
-          g.fatia.setLatLngs(fatiaLatLngs(g.p, g.p.angulo));
-          g.braco.setLatLngs([[g.p.lat, g.p.lng], ponto(g.p, g.p.r, g.p.angulo)]);
+          g.f.setLatLngs(fatiaLatLngs(g.p, g.p.angulo));
+          g.b.setLatLngs([[g.p.lat, g.p.lng], ponto(g.p, g.p.r, g.p.angulo)]);
         });
-      }, 120);
+        if (cenaAtual === 3) { anguloAlvo = (anguloAlvo + 2) % 360; desenhaAlvo(); }
+      }, 100);
     }
+  }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
-    // Card 2: pontos do GPS formando o círculo
-    const alvo = PIVOS[3];
-    const mGps = criaMapa('mapa-gps');
-    mGps.fitBounds(limites([alvo]), { padding: [36, 36] });
-    let semente = 7;
-    const ruido = () => { semente = (semente * 9301 + 49297) % 233280; return (semente / 233280 - 0.5) * 30; };
-    const ULTIMO = 250;
-    for (let a = 0; a <= ULTIMO; a += 10) {
-      const idade = (ULTIMO - a) / ULTIMO;
-      L.circleMarker(ponto(alvo, alvo.r + ruido(), a), {
-        radius: 4, color: '#6ee07f', weight: 1, fillColor: '#6ee07f', fillOpacity: 1 - idade * 0.7, opacity: 1 - idade * 0.7,
-      }).addTo(mGps);
+// Como funciona: um pivô em 3D. A rolagem gira o braço, pinta a área
+// irrigada e leva a câmera do equipamento na torre até a visão do campo.
+const cv = document.getElementById("p3d-cv");
+const stage = document.getElementById("p3d-stage");
+const scrolly = document.getElementById("como");
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// Sem suporte a 3D, a página continua: fica o degradê e os textos trocam igual.
+let renderer = null;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+} catch (e) { renderer = null; }
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x7a4120, 0.011); // o chão longe vai esquentando até a cor do horizonte
+if (renderer) scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.45;
+const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 900);
+
+// Fim de tarde: o sol baixo fica atrás da última torre na primeira cena
+// (contraluz na água) e a luz azulada do céu preenche as sombras.
+const TH_INICIO = 40 * Math.PI / 180;
+const SUN = new THREE.Vector3(5.5 * Math.cos(TH_INICIO) - 6.5 * Math.sin(TH_INICIO), 0.9, -5.5 * Math.sin(TH_INICIO) - 6.5 * Math.cos(TH_INICIO)).normalize();
+scene.add(new THREE.HemisphereLight(0x8fa6c8, 0x2a1a10, 0.75));
+const sun = new THREE.DirectionalLight(0xffb36b, 3.2); sun.position.copy(SUN).multiplyScalar(60); scene.add(sun);
+const fillL = new THREE.DirectionalLight(0x9fb8ff, 0.35); fillL.position.set(-SUN.x * 40, 20, -SUN.z * 40); scene.add(fillL);
+// Céu: degradê do horizonte alaranjado pro alto escuro, com o brilho do sol.
+const sky = new THREE.Mesh(new THREE.SphereGeometry(400, 48, 24), new THREE.ShaderMaterial({
+  side: THREE.BackSide, depthWrite: false, fog: false,
+  uniforms: { sunDir: { value: SUN.clone().setY(0.05).normalize() } },
+  vertexShader: "varying vec3 vDir; void main(){ vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+  fragmentShader: `varying vec3 vDir; uniform vec3 sunDir;
+    void main(){
+      float y = vDir.y;
+      vec3 zenite = vec3(0.039, 0.043, 0.043);
+      vec3 alto = vec3(0.10, 0.11, 0.14);
+      vec3 horizonte = vec3(0.86, 0.45, 0.20);
+      vec3 col = mix(horizonte, alto, smoothstep(0.0, 0.22, y));
+      col = mix(col, zenite, smoothstep(0.22, 0.6, y));
+      float s = max(dot(normalize(vDir), sunDir), 0.0);
+      col += vec3(1.0, 0.62, 0.30) * (pow(s, 6.0) * 0.55 * (1.0 - smoothstep(0.0, 0.3, y)) + pow(s, 400.0) * 2.5);
+      col = mix(vec3(0.478, 0.255, 0.125), col, smoothstep(-0.02, 0.01, y));
+      gl_FragColor = vec4(col, 1.0);
+    }`,
+}));
+sky.renderOrder = -1; scene.add(sky);
+
+const deg = (d) => d * Math.PI / 180;
+const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+
+const steel = new THREE.MeshStandardMaterial({ color: 0xb9bdbc, metalness: 0.85, roughness: 0.38 });
+const darkSteel = new THREE.MeshStandardMaterial({ color: 0x5d6362, metalness: 0.7, roughness: 0.5 });
+const rubber = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.9 });
+const hose = new THREE.MeshStandardMaterial({ color: 0x2b2f2e, roughness: 0.7 });
+const concrete = new THREE.MeshStandardMaterial({ color: 0x5a5852, roughness: 0.95 });
+const deviceMat = new THREE.MeshStandardMaterial({ color: 0x1b1e1d, metalness: 0.3, roughness: 0.5 });
+const ledMat = new THREE.MeshStandardMaterial({ color: 0x1fbf4a, emissive: 0x1fbf4a, emissiveIntensity: 2 });
+
+// Peças paradas viram uma malha só por material (bem menos chamadas de desenho).
+function bucket() { return { steel: [], dark: [], hose: [] }; }
+function rodGeo(a, b, r, seg = 8) {
+  const d = new THREE.Vector3().subVectors(b, a), g = new THREE.CylinderGeometry(r, r, d.length(), seg, 1);
+  const m = new THREE.Matrix4().compose(a.clone().add(b).multiplyScalar(0.5), new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), d.normalize()), V(1, 1, 1));
+  return g.applyMatrix4(m);
+}
+function boxGeo(w, h, d, x, y, z) { return new THREE.BoxGeometry(w, h, d).translate(x, y, z); }
+function flush(b, parent) {
+  for (const [k, mat] of [["steel", steel], ["dark", darkSteel], ["hose", hose]]) {
+    if (b[k].length) parent.add(new THREE.Mesh(mergeGeometries(b[k].map((g) => g.index ? g.toNonIndexed() : g)), mat));
+  }
+}
+
+// ---------- Campo ----------
+const R = 12, H = 3.1, TOWERS = [3, 6, 9, 12], OVER = 1.8;
+function fieldTexture() {
+  const c = document.createElement("canvas"); c.width = c.height = 1024;
+  const g = c.getContext("2d");
+  g.fillStyle = "#4b4232"; g.fillRect(0, 0, 1024, 1024);
+  for (let r = 4; r < 512; r += 5) {
+    g.strokeStyle = r % 10 < 5 ? "rgba(255,240,210,.05)" : "rgba(0,0,0,.12)";
+    g.lineWidth = 2.2; g.beginPath(); g.arc(512, 512, r, 0, Math.PI * 2); g.stroke();
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+}
+const tex = fieldTexture();
+const FR = R + OVER + 0.4;
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), new THREE.MeshStandardMaterial({ color: 0x1a1612, roughness: 1 }));
+ground.rotation.x = -Math.PI / 2; scene.add(ground);
+const field = new THREE.Mesh(new THREE.CircleGeometry(FR, 160), new THREE.MeshStandardMaterial({ map: tex, roughness: 1 }));
+field.rotation.x = -Math.PI / 2; field.position.y = 0.01; scene.add(field);
+// Área já irrigada: mesma textura, molhada e verde.
+const wetMat = new THREE.MeshStandardMaterial({ map: tex, color: 0x6fa866, roughness: 0.75 });
+const wet = new THREE.Mesh(new THREE.BufferGeometry(), wetMat);
+wet.rotation.x = -Math.PI / 2; wet.position.y = 0.02; scene.add(wet);
+// Trilhas das rodas.
+for (const r of TOWERS) {
+  const t = new THREE.Mesh(new THREE.RingGeometry(r - 0.07, r + 0.07, 160), new THREE.MeshStandardMaterial({ color: 0x2c251c, roughness: 1 }));
+  t.rotation.x = -Math.PI / 2; t.position.y = 0.03; scene.add(t);
+}
+const TH0 = deg(10);
+let wetShown = -1;
+function setWet(th) {
+  if (Math.abs(th - wetShown) < 0.004) return;
+  wetShown = th; wet.geometry.dispose();
+  // UV igual ao do campo pra textura das linhas bater certinho.
+  const g = new THREE.CircleGeometry(FR - 0.02, 160, TH0, Math.max(0.001, th - TH0));
+  const uv = g.attributes.uv, pos = g.attributes.position;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, pos.getX(i) / (2 * FR) + 0.5, pos.getY(i) / (2 * FR) + 0.5);
+  wet.geometry = g;
+}
+
+// ---------- Torre central (parada) ----------
+const center = new THREE.Group(); scene.add(center);
+{
+  const b = bucket();
+  center.add(new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.3, 3.2).translate(0, 0.15, 0), concrete));
+  const top = V(0, H + 0.5, 0);
+  const feet = [V(1.2, 0.3, 1.2), V(-1.2, 0.3, 1.2), V(-1.2, 0.3, -1.2), V(1.2, 0.3, -1.2)];
+  feet.forEach((f, i) => {
+    b.steel.push(rodGeo(f, top, 0.07));
+    const n = feet[(i + 1) % 4];
+    b.steel.push(rodGeo(f.clone().lerp(top, 0.35), n.clone().lerp(top, 0.35), 0.04));
+    b.steel.push(rodGeo(f.clone().lerp(top, 0.35), n.clone().lerp(top, 0.7), 0.03));
+  });
+  b.steel.push(rodGeo(V(0, 0.3, 0), V(0, H + 0.95, 0), 0.17, 16));
+  b.dark.push(boxGeo(0.6, 0.8, 0.3, 0.75, 1.4, 1.05));
+  flush(b, center);
+}
+
+// ---------- Braço (gira) ----------
+const arm = new THREE.Group(); scene.add(arm);
+const nozzles = [];
+const wheels = [];
+{
+  const b = bucket();
+  b.steel.push(rodGeo(V(0, H + 0.95, 0), V(0.5, H + 0.95, 0), 0.13, 12));
+  b.steel.push(rodGeo(V(0.5, H + 0.95, 0), V(0.9, H, 0), 0.13, 12));
+  let r0 = 0.9;
+  for (const r1 of TOWERS) {
+    b.steel.push(rodGeo(V(r0, H, 0), V(r1, H, 0), 0.12, 12));
+    // Treliça em V embaixo do cano.
+    const lo = H - 1.0, zz = 0.45, a = r0 + 0.5, e = r1 - 0.5;
+    for (const s of [-1, 1]) {
+      b.steel.push(rodGeo(V(a, lo, s * zz), V(e, lo, s * zz), 0.035));
+      b.steel.push(rodGeo(V(r0 + 0.05, H, 0), V(a, lo, s * zz), 0.04));
+      b.steel.push(rodGeo(V(r1 - 0.05, H, 0), V(e, lo, s * zz), 0.04));
+      const n = Math.round((e - a) / 0.55);
+      for (let k = 0; k < n; k++) {
+        const x0 = a + (e - a) * k / n, x1 = a + (e - a) * (k + 1) / n;
+        b.steel.push(rodGeo(V(x0, lo, s * zz), V((x0 + x1) / 2, H - 0.05, 0), 0.022, 6));
+        b.steel.push(rodGeo(V((x0 + x1) / 2, H - 0.05, 0), V(x1, lo, s * zz), 0.022, 6));
+      }
     }
-    L.circle([alvo.lat, alvo.lng], { radius: alvo.r, color: '#fff', weight: 1.5, dashArray: '4 6', fill: false }).addTo(mGps);
-    L.polyline([[alvo.lat, alvo.lng], ponto(alvo, alvo.r, ULTIMO)], { color: '#fff', weight: 2 }).addTo(mGps);
-    L.circleMarker(ponto(alvo, alvo.r, ULTIMO), { radius: 7, color: '#fff', weight: 2, fillColor: '#1fbf4a', fillOpacity: 1 }).addTo(mGps);
-    L.circleMarker([alvo.lat, alvo.lng], { radius: 5, color: '#fff', weight: 2, fillColor: '#111', fillOpacity: 1 }).addTo(mGps);
-    L.marker([alvo.lat, alvo.lng], { icon: L.divIcon({ className: '', html: '<span class="rotulo">centro calculado</span>', iconSize: [0, 0] }) }).addTo(mGps);
-    L.marker(ponto(alvo, alvo.r, ULTIMO), { icon: L.divIcon({ className: '', html: '<span class="rotulo">última posição</span>', iconSize: [0, 0] }) }).addTo(mGps);
+    for (let x = a; x <= e + 0.01; x += (e - a) / 3) b.steel.push(rodGeo(V(x, lo, -zz), V(x, lo, zz), 0.025, 6));
+    // Mangueiras de descida com bico.
+    for (let x = r0 + 0.5; x < r1 - 0.2; x += 0.75) {
+      b.hose.push(rodGeo(V(x, H - 0.1, 0), V(x, 1.35, 0), 0.016, 6));
+      b.dark.push(new THREE.CylinderGeometry(0.06, 0.03, 0.1, 10).translate(x, 1.3, 0));
+      nozzles.push(V(x, 1.25, 0));
+    }
+    // Torre com rodas: cavalete em A, viga, caixa de redução e cardans.
+    const hub = 0.62, zw = 1.15;
+    for (const s of [-1, 1]) {
+      b.steel.push(rodGeo(V(r1, H - 0.05, 0), V(r1, hub + 0.15, s * zw), 0.06));
+      b.dark.push(rodGeo(V(r1, hub, 0), V(r1, hub, s * (zw - 0.2)), 0.035));
+      const w = new THREE.Group(); w.position.set(r1, hub, s * zw);
+      const tire = new THREE.Mesh(new THREE.CylinderGeometry(hub, hub, 0.34, 28), rubber); tire.rotation.z = Math.PI / 2; w.add(tire);
+      for (let k = 0; k < 14; k++) {
+        const lug = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.06, 0.12), rubber);
+        const ang = k / 14 * Math.PI * 2; lug.position.set(0, Math.cos(ang) * hub, Math.sin(ang) * hub); lug.rotation.x = -ang; w.add(lug);
+      }
+      const rimD = new THREE.Mesh(new THREE.CylinderGeometry(hub * 0.55, hub * 0.55, 0.36, 20), darkSteel); rimD.rotation.z = Math.PI / 2; w.add(rimD);
+      arm.add(w); wheels.push(w);
+    }
+    b.steel.push(rodGeo(V(r1, hub + 0.15, -zw), V(r1, hub + 0.15, zw), 0.07));
+    b.dark.push(boxGeo(0.42, 0.34, 0.42, r1, hub + 0.15, 0));
+    b.steel.push(rodGeo(V(r1, H - 0.6, -0.5), V(r1, H - 0.6, 0.5), 0.035));
+    r0 = r1;
+  }
+  // Lance em balanço com cabos e o canhão no fim.
+  b.steel.push(rodGeo(V(R, H, 0), V(R + OVER, H - 0.15, 0), 0.07, 10));
+  b.steel.push(rodGeo(V(R, H, 0), V(R, H + 1.25, 0), 0.05));
+  b.steel.push(rodGeo(V(R, H + 1.25, 0), V(R + OVER, H - 0.12, 0), 0.015, 5));
+  b.steel.push(rodGeo(V(R, H + 1.25, 0), V(R - 2.2, H, 0), 0.015, 5));
+  b.dark.push(rodGeo(V(R + OVER, H - 0.15, 0), V(R + OVER + 0.35, H + 0.15, 0), 0.05, 8));
+  nozzles.push(V(R + OVER + 0.4, H + 0.2, 0));
+  flush(b, arm);
+}
 
-    // Card 3: temperatura
-    const mTemp = criaMapa('mapa-temp');
-    mTemp.fitBounds(limites(PIVOS), { padding: [10, 10] });
-    const corTemp = (t) => (t >= 30 ? '#ff8a3d' : t >= 28 ? '#f5c542' : '#8fe39c');
-    PIVOS.forEach((p) => {
-      L.circle([p.lat, p.lng], { radius: p.r, color: '#ffffff', weight: 1, opacity: 0.6, fillOpacity: 0.05 }).addTo(mTemp);
-      const html = p.temp === null
-        ? '<span class="temp" style="background:#555;color:#ddd">sem sinal</span>'
-        : `<span class="temp" style="background:${corTemp(p.temp)}">${p.temp}°C</span>`;
-      L.marker([p.lat, p.lng], { icon: L.divIcon({ className: '', html, iconSize: [0, 0] }) }).addTo(mTemp);
-    });
+// ---------- Equipamento da Aut-Par na última torre ----------
+const device = new THREE.Group(); device.position.set(R, H + 0.55, 0.12); arm.add(device);
+device.add(new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.34, 0.2), deviceMat));
+const led = new THREE.Mesh(new THREE.SphereGeometry(0.025, 10, 8), ledMat); led.position.set(0.12, 0.1, 0.105); device.add(led);
+const gps = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.13, 0.06, 20), new THREE.MeshStandardMaterial({ color: 0xe9ece9, roughness: 0.6 }));
+gps.position.set(0, 0.73, -0.12); device.add(gps);
+const camBody = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.12), deviceMat); camBody.position.set(0.3, -0.05, 0); device.add(camBody);
+const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.05, 16), new THREE.MeshStandardMaterial({ color: 0x0b0d0d, metalness: 0.9, roughness: 0.1 }));
+lens.rotation.z = Math.PI / 2; lens.position.set(0.4, -0.05, 0); device.add(lens);
+const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.5, 6), darkSteel); ant.position.set(-0.15, 0.4, 0); device.add(ant);
+const halo = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.018, 8, 64), new THREE.MeshBasicMaterial({ color: 0x1fbf4a, transparent: true, opacity: 0 }));
+halo.rotation.x = Math.PI / 2; device.add(halo);
+const glow = new THREE.PointLight(0x1fbf4a, 0, 4, 2); device.add(glow);
+// Ondas do envio pra nuvem.
+const waves = [0, 1, 2].map(() => {
+  const m = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.012, 6, 64), new THREE.MeshBasicMaterial({ color: 0x6ee07f, transparent: true, opacity: 0, depthWrite: false }));
+  m.rotation.x = Math.PI / 2; device.add(m); return m;
+});
+
+// ---------- Água ----------
+const PER = reduce ? 0 : 30;
+const NP = nozzles.length * PER;
+const pPos = new Float32Array(NP * 3), pSeed = new Float32Array(NP);
+for (let i = 0; i < NP; i++) pSeed[i] = Math.random();
+const pGeo = new THREE.BufferGeometry(); pGeo.setAttribute("position", new THREE.BufferAttribute(pPos, 3));
+const water = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0xffe3bd, size: 0.075, transparent: true, opacity: 0.7, depthWrite: false, blending: THREE.AdditiveBlending }));
+arm.add(water);
+
+// ---------- Rolagem e câmera ----------
+const els = { steps: [...document.querySelectorAll(".p3d-step")], ang: document.getElementById("p3d-ang"), area: document.getElementById("p3d-area") };
+let target = 0, cur = 0, last = performance.now(), visible = false, mobile = false, drift = 0, shown = -1;
+function readScroll() { const r = scrolly.getBoundingClientRect(); target = Math.min(1, Math.max(0, -r.top / (r.height - stage.clientHeight))); }
+function resize() {
+  mobile = stage.clientWidth < 820;
+  if (renderer) renderer.setSize(cv.clientWidth, cv.clientHeight, false);
+  camera.aspect = cv.clientWidth / cv.clientHeight; camera.updateProjectionMatrix();
+}
+addEventListener("resize", resize); addEventListener("scroll", readScroll, { passive: true });
+new IntersectionObserver(([e]) => { visible = e.isIntersecting; if (visible) { last = performance.now(); requestAnimationFrame(frame); } }).observe(stage);
+resize(); readScroll(); cur = target;
+
+const toWorld = (local) => arm.localToWorld(local.clone());
+const tmpT = new THREE.Vector3(), tmpC = new THREE.Vector3();
+function frame(now) {
+  if (!visible) return;
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  cur = reduce ? target : cur + (target - cur) * (1 - Math.exp(-dt * 5));
+  const p = cur;
+  if (!reduce) drift += dt * 0.012;
+
+  const th = TH_INICIO + p * deg(250) + drift;
+  const moved = th - arm.rotation.y;
+  arm.rotation.y = th; arm.updateMatrixWorld();
+  setWet(th);
+  wheels.forEach((w) => { w.rotation.x -= moved * Math.hypot(w.position.x, 0) / 0.62; });
+
+  // Câmera: baixa contra o pôr do sol -> equipamento de perto -> meio do
+  // braço -> campo inteiro de cima.
+  const w0 = smooth(0.1, 0.26, p), w1 = smooth(0.38, 0.55, p), w2 = smooth(0.62, 0.84, p);
+  const k = mobile ? 1.55 : 1;
+  const TA = toWorld(V(R - 1.5, H + 0.4, 0)), CA = toWorld(V(R - 9 * k, 1.1, 8.5 * k));
+  const T0 = toWorld(V(R, H + 0.6, 0)).lerp(TA, 1 - w0), C0 = toWorld(V(R - 5.5 * k, H + 2.2 * k, 6.5 * k)).lerp(CA, 1 - w0);
+  const T1 = toWorld(V(R * 0.55, 1.2, 0)), C1 = toWorld(V(R * 0.55 - 3 * k, 8 * k, 15 * k));
+  const T2 = V(0, 0, 0), C2 = V(-8 * k, 44 * k, 36 * k);
+  scene.fog.density = 0.011 * (1 - 0.75 * w2); // de cima, campo nítido
+  tmpT.copy(T0).lerp(T1, w1).lerp(T2, w2);
+  tmpC.copy(C0).lerp(C1, w1).lerp(C2, w2);
+  camera.position.copy(tmpC); camera.lookAt(tmpT);
+  const W = cv.clientWidth, Hh = cv.clientHeight;
+  camera.setViewOffset(W, Hh, mobile ? 0 : -W * 0.18, mobile ? Hh * 0.14 : 0, W, Hh);
+
+  // Destaque do equipamento (passo 1) e ondas pra nuvem (passo 2).
+  const devOn = smooth(0.12, 0.24, p) * (1 - smooth(0.62, 0.8, p));
+  const pulse = 0.5 + 0.5 * Math.sin(now / 280);
+  halo.material.opacity = devOn * (0.35 + 0.5 * pulse); halo.scale.setScalar(1 + 0.15 * pulse);
+  glow.intensity = devOn * 1.5;
+  ledMat.emissiveIntensity = 1 + 2 * pulse;
+  const sendOn = smooth(0.42, 0.5, p) * (1 - smooth(0.66, 0.76, p));
+  waves.forEach((m, i) => {
+    const f = ((now / 1600) + i / 3) % 1;
+    m.position.y = 0.3 + f * 2.2; m.scale.setScalar(0.6 + f * 2.2);
+    m.material.opacity = sendOn * (1 - f) * 0.8;
+  });
+
+  if (NP) {
+    for (let n = 0; n < nozzles.length; n++) {
+      const z = nozzles[n], big = n === nozzles.length - 1;
+      for (let j = 0; j < PER; j++) {
+        const i = n * PER + j, s = pSeed[i];
+        const life = (s + now / (big ? 1300 : 900)) % 1, a = s * 77;
+        const spread = big ? 2.2 : 0.75;
+        pPos[i * 3] = z.x + (big ? life * 2.4 : Math.cos(a) * spread * life);
+        pPos[i * 3 + 1] = Math.max(0.03, z.y + (big ? 1.2 * life : 0) - (big ? 4.5 : 1.6) * life * life);
+        pPos[i * 3 + 2] = z.z + Math.sin(a) * spread * life;
+      }
+    }
+    pGeo.attributes.position.needsUpdate = true;
   }
 
-  if (parado) {
-    desenha(135);
-  } else {
-    const inicio = performance.now();
-    (function quadro(t) {
-      desenha(((t - inicio) % PERIODO_MS) / PERIODO_MS * 360);
-      requestAnimationFrame(quadro);
-    })(inicio);
+  if (renderer) {
+    renderer.render(scene, camera);
+    if (!cv.classList.contains('pronto')) cv.classList.add('pronto');
   }
+
+  const step = p < 0.18 ? 0 : p < 0.42 ? 1 : p < 0.66 ? 2 : 3;
+  if (step !== shown) { els.steps.forEach((s, i) => s.classList.toggle("on", i === step)); shown = step; }
+  const angDeg = ((th * 180 / Math.PI) % 360 + 360) % 360;
+  els.ang.textContent = `${Math.round(angDeg)}°`;
+  els.area.textContent = `${Math.min(100, Math.round((th - TH0) / (Math.PI * 2) * 100))}% irrigado`;
+  requestAnimationFrame(frame);
+}
 </script>
 </body>
 </html>
